@@ -86,8 +86,6 @@ func main() {
 	orm.RunSyncdb("default", false, true)
 
 	// Khởi tạo Beego router
-	beego.Router("/api/tasks", &TasksController{})
+	beego.Router("/api/tasks", &TasksController{}, "post:AddTask")
 	beego.Run()
 }
-
-//http://localhost:8080/api/tasks

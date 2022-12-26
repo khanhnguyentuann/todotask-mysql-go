@@ -1,0 +1,9 @@
+# link task api
+http://localhost:8080/api/tasks
+
+# command sql to add user in mysql database
+INSERT INTO users(id, max_tasks_per_day, created_at)
+VALUES (1, 5, '2022-12-26');
+
+#Create a foreign key for 'user_id' in todo_tasks' table and link it with the 'id' in the 'users' table
+ALTER TABLE todo_tasks ADD FOREIGN KEY (user_id) REFERENCES users(id);
