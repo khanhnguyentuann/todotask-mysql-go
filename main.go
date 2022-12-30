@@ -1,6 +1,7 @@
 package main
 
 import (
+	"log"
 	"net/http"
 	"strconv"
 	"time"
@@ -12,10 +13,10 @@ import (
 
 // TodoTask represents a todo task
 type TodoTask struct {
-	ID        int       `orm:"column(id);pk"`
-	UserID    int       `orm:"column(user_id)"`
-	Task      string    `orm:"column(task)"`
-	CreatedAt time.Time `orm:"column(created_at);auto_now_add"`
+	ID        int       `orm:"column(id);pk" json:"id"`
+	UserID    int       `orm:"column(user_id)" json:"user_id"`
+	Task      string    `orm:"column(task)" json:"task"`
+	CreatedAt time.Time `orm:"column(created_at);auto_now_add" json:"created_at"`
 }
 
 // TableName specifies the name of the table in the database
@@ -25,9 +26,9 @@ func (t *TodoTask) TableName() string {
 
 // User represents a user
 type User struct {
-	ID             int       `orm:"column(id);pk"`
-	MaxTasksPerDay int       `orm:"column(max_tasks_per_day)"`
-	CreatedAt      time.Time `orm:"column(created_at);auto_now_add"`
+	ID             int       `orm:"column(id);pk" json:"id"`
+	MaxTasksPerDay int       `orm:"column(max_tasks_per_day)" json:"max_tasks_per_day"`
+	CreatedAt      time.Time `orm:"column(created_at);auto_now_add" json:"created_at"`
 }
 
 // TableName specifies the name of the table in the database
@@ -42,26 +43,55 @@ type TasksController struct {
 
 // AddTask adds a new todo task
 func (c *TasksController) AddTask() {
-	userID, _ := strconv.Atoi(c.Ctx.Input.Param(":user_id"))
-	task := c.GetString("task")
 
-	// Check if user has reached their daily task limit
-	user := User{ID: userID}
-	err := orm.NewOrm().Read(&user)
+	// Declare a variable to store the user ID
+	var userID int
+	// Get the user ID string from the request parameters
+	userIDString := c.Ctx.Input.Param(":user_id")
+	if userIDString == "" {
+		c.CustomAbort(http.StatusBadRequest, "User id cannot be empty")
+	}
+	// Convert the user ID string to an integer
+	userID, err := strconv.Atoi(userIDString)
+	log.Println("err:", err)
 	if err != nil {
-		c.CustomAbort(http.StatusBadRequest, "Invalid user ID")
+		// If the conversion fails, return a custom error response to the client
+		c.CustomAbort(http.StatusBadRequest, "Invalid user id")
 	}
 
-	today := time.Now().Format("2022-12-12")
+	// Get the task from the request body
+	task := c.GetString("task")
+	log.Println("task:", task)
+	if task == "" {
+		c.CustomAbort(http.StatusBadRequest, "Task cannot be empty")
+	}
+
+	// Create a new ORM object
+	o := orm.NewOrm()
+
+	// Check if the user exists
+	user := User{ID: userID}
+	err = o.Read(&user)
+	if err == orm.ErrNoRows {
+		c.CustomAbort(http.StatusBadRequest, "User ID not found")
+	} else if err != nil {
+		c.CustomAbort(http.StatusInternalServerError, "Error reading user")
+	}
+
+	// Check if the user has reached the task limit per day
+	today := time.Now().Format("2006-01-02")
 	var count int
-	orm.NewOrm().Raw("SELECT COUNT(*) FROM todo_tasks WHERE user_id = ? AND DATE(created_at) = ?", userID, today).QueryRow(&count)
+	err = o.Raw("SELECT COUNT(*) FROM todo_tasks WHERE user_id = ? AND DATE(created_at) = ?", userID, today).QueryRow(&count)
+	if err != nil {
+		c.CustomAbort(http.StatusInternalServerError, "Error counting tasks")
+	}
 	if count >= user.MaxTasksPerDay {
 		c.CustomAbort(http.StatusBadRequest, "Daily task limit reached")
 	}
 
 	// Add the task to the database
 	todoTask := TodoTask{UserID: userID, Task: task}
-	_, err = orm.NewOrm().Insert(&todoTask)
+	_, err = o.Insert(&todoTask)
 	if err != nil {
 		c.CustomAbort(http.StatusInternalServerError, "Error adding task")
 	}
@@ -72,20 +102,19 @@ func (c *TasksController) AddTask() {
 
 func main() {
 	// Khởi tạo kết nối MySQL
-	orm.RegisterDriver("mysql", orm.DRMySQL)                                                   //Đăng kí trình điều khiển mysql
-	orm.RegisterDataBase("default", "mysql", "root@tcp(127.0.0.1:3306)/todo_app?charset=utf8") //Khởi động kết nối đến cơ sở dữ liệu
+	orm.RegisterDriver("mysql", orm.DRMySQL)
+	orm.RegisterDataBase("default", "mysql", "root@tcp(127.0.0.1:3306)/todo_app?charset=utf8")
 
 	//Khởi động kết nối với cơ sở dữ diệu
 	orm.Debug = true
 
 	//Đăng kí các bảng cần sử dụng
-	orm.RegisterModel(new(TodoTask))
-	orm.RegisterModel(new(User))
-
-	//Tạo các bảng trong CSDL nếu chúng chưa tồn tại
-	orm.RunSyncdb("default", false, true)
+	orm.RegisterModel(&User{})
+	orm.RegisterModel(&TodoTask{})
 
 	// Khởi tạo Beego router
-	beego.Router("/api/tasks", &TasksController{}, "post:AddTask")
+	beego.Router("/users/:user_id/tasks", &TasksController{}, "post:AddTask")
+
+	//Start the server
 	beego.Run()
 }

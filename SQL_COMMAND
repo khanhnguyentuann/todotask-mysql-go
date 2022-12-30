@@ -1,0 +1,23 @@
+--create users
+CREATE TABLE users (
+  id INT PRIMARY KEY AUTO_INCREMENT,
+  max_tasks_per_day INT NOT NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+--create todo_tasks
+CREATE TABLE todo_tasks (
+  id INT PRIMARY KEY AUTO_INCREMENT,
+  user_id INT NOT NULL,
+  task VARCHAR(255) NOT NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (user_id) REFERENCES users(id)
+);
+
+
+--add task
+INSERT INTO todo_tasks (user_id, task) VALUES (USER_ID, 'TASK_DESCRIPTION');
+
+--add user
+INSERT INTO users (max_tasks_per_day) VALUES (MAX_TASKS_PER_DAY);
+
