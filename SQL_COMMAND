@@ -1,3 +1,7 @@
+CREATE DATABASE todo_app;
+
+USE todo_app;
+
 --create users
 CREATE TABLE users (
   id INT PRIMARY KEY AUTO_INCREMENT,
