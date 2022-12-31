@@ -1,7 +1,6 @@
 package main
 
 import (
-	"log"
 	"net/http"
 	"strconv"
 	"time"
@@ -43,8 +42,7 @@ type TasksController struct {
 
 // AddTask adds a new todo task
 func (c *TasksController) AddTask() {
-
-	// Declare a variable to store the user ID
+	// Extract the user ID from the URL parameters
 	var userID int
 	// Get the user ID string from the request parameters
 	userIDString := c.Ctx.Input.Param(":user_id")
@@ -53,7 +51,6 @@ func (c *TasksController) AddTask() {
 	}
 	// Convert the user ID string to an integer
 	userID, err := strconv.Atoi(userIDString)
-	log.Println("err:", err)
 	if err != nil {
 		// If the conversion fails, return a custom error response to the client
 		c.CustomAbort(http.StatusBadRequest, "Invalid user id")
@@ -61,7 +58,6 @@ func (c *TasksController) AddTask() {
 
 	// Get the task from the request body
 	task := c.GetString("task")
-	log.Println("task:", task)
 	if task == "" {
 		c.CustomAbort(http.StatusBadRequest, "Task cannot be empty")
 	}
@@ -101,18 +97,20 @@ func (c *TasksController) AddTask() {
 }
 
 func main() {
-	// Khởi tạo kết nối MySQL
+	//Register the MySQL driver with ORM.
 	orm.RegisterDriver("mysql", orm.DRMySQL)
+	//Register the default database with ORM.
 	orm.RegisterDataBase("default", "mysql", "root@tcp(127.0.0.1:3306)/todo_app?charset=utf8")
 
-	//Khởi động kết nối với cơ sở dữ diệu
+	// Enable debugging for ORM. This will print SQL queries and other debug information to the console.
+	// Use this for debugging.
 	orm.Debug = true
 
-	//Đăng kí các bảng cần sử dụng
+	//Register the tables to use
 	orm.RegisterModel(&User{})
 	orm.RegisterModel(&TodoTask{})
 
-	// Khởi tạo Beego router
+	//Set up the router
 	beego.Router("/users/:user_id/tasks", &TasksController{}, "post:AddTask")
 
 	//Start the server
