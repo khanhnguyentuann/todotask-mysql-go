@@ -16,6 +16,7 @@ type TodoTask struct {
 	UserID    int       `orm:"column(user_id)" json:"user_id"`
 	Task      string    `orm:"column(task)" json:"task"`
 	CreatedAt time.Time `orm:"column(created_at);auto_now_add" json:"created_at"`
+	UpdatedAt time.Time `orm:"column(updated_at);auto_now_add" json:"updated_at"`
 }
 
 // TableName specifies the name of the table in the database
@@ -26,8 +27,10 @@ func (t *TodoTask) TableName() string {
 // User represents a user
 type User struct {
 	ID             int       `orm:"column(id);pk" json:"id"`
+	Name           string    `orm:"column(name)" json:"name"`
 	MaxTasksPerDay int       `orm:"column(max_tasks_per_day)" json:"max_tasks_per_day"`
 	CreatedAt      time.Time `orm:"column(created_at);auto_now_add" json:"created_at"`
+	UpdatedAt      time.Time `orm:"column(updated_at);auto_now_add" json:"updated_at"`
 }
 
 // TableName specifies the name of the table in the database
