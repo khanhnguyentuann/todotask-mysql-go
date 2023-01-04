@@ -21,10 +21,3 @@ CREATE TABLE todo_tasks (
   FOREIGN KEY (user_id) REFERENCES users(id)
 );
 
-
---add task
-INSERT INTO todo_tasks (user_id, name, task) VALUES (USER_ID, 'TASK_DESCRIPTION');
-
---add user
-INSERT INTO users (name, max_tasks_per_day) VALUES ('khanh', 3);
-
