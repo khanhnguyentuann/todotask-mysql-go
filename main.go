@@ -43,6 +43,11 @@ type TasksController struct {
 	beego.Controller
 }
 
+// UsersController handles the API endpoints for managing users
+type UsersController struct {
+	beego.Controller
+}
+
 // GetTasks retrieves a list of todo tasks for a specific user
 func (c *TasksController) GetTasks() {
 	// Extract the user ID from the URL parameters
@@ -318,6 +323,53 @@ func (c *TasksController) DeleteAllTasks() {
 	c.ServeJSON()
 }
 
+// GetUsers retrieves a list of all users
+func (c *UsersController) GetUsers() {
+	// Create a new ORM object
+	o := orm.NewOrm()
+	// Get the list of users from the database
+	var users []User
+	_, err := o.QueryTable("users").All(&users)
+	if err != nil {
+		c.CustomAbort(http.StatusInternalServerError, "Error retrieving users")
+	}
+
+	// Return the list of users in the response body
+	c.Data["json"] = &users
+	c.ServeJSON()
+}
+
+// AddUser adds a new user
+func (c *UsersController) AddUser() {
+	// Get the user name and maximum tasks per day from the request body
+	name := c.GetString("name")
+	if name == "" {
+		c.CustomAbort(http.StatusBadRequest, "Name cannot be empty")
+	}
+	maxTasksPerDayString := c.GetString("maxtasks")
+	if maxTasksPerDayString == "" {
+		c.CustomAbort(http.StatusBadRequest, "Max tasks per day cannot be empty")
+	}
+	maxTasksPerDay, err := strconv.Atoi(maxTasksPerDayString)
+	if err != nil {
+		c.CustomAbort(http.StatusBadRequest, "Invalid max tasks per day")
+	}
+
+	// Create a new ORM object
+	o := orm.NewOrm()
+
+	// Add the user to the database
+	user := User{Name: name, MaxTasksPerDay: maxTasksPerDay}
+	_, err = o.Insert(&user)
+	if err != nil {
+		c.CustomAbort(http.StatusInternalServerError, "Error inserting user")
+	}
+
+	// Return the newly created user in the response body
+	c.Data["json"] = map[string]string{"message": "User added successfully"}
+	c.ServeJSON()
+}
+
 func main() {
 	//Register the MySQL driver with ORM.
 	orm.RegisterDriver("mysql", orm.DRMySQL)
@@ -332,13 +384,17 @@ func main() {
 	orm.RegisterModel(&User{})
 	orm.RegisterModel(&TodoTask{})
 
-	//Set up the router
+	//Set up the router for task
 	beego.Router("/:user_id", &TasksController{}, "get:GetTasks")
 	beego.Router("/:user_id/:task_id", &TasksController{}, "get:GetTaskByID")
 	beego.Router("/:user_id", &TasksController{}, "post:AddTask")
 	beego.Router("/:user_id/:task_id", &TasksController{}, "put:UpdateTask")
 	beego.Router("/:user_id/:task_id", &TasksController{}, "delete:DeleteTask")
 	beego.Router("/:user_id", &TasksController{}, "delete:DeleteAllTasks")
+
+	//Set up the router for user
+	beego.Router("/", &UsersController{}, "get:GetUsers")
+	beego.Router("/", &UsersController{}, "post:AddUser")
 
 	//Start the server
 	beego.Run()
