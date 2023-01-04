@@ -178,6 +178,57 @@ func (c *TasksController) AddTask() {
 	c.ServeJSON()
 }
 
+// DeleteTask deletes a specific todo task by its ID and checks if the current user has that task
+func (c *TasksController) DeleteTask() {
+	// Extract the task ID and user ID from the URL parameters
+	var taskID, userID int
+	// Get the task ID and user ID strings from the request parameters
+	taskIDString := c.Ctx.Input.Param(":task_id")
+	userIDString := c.Ctx.Input.Param(":user_id")
+	if taskIDString == "" {
+		c.CustomAbort(http.StatusBadRequest, "Task id cannot be empty")
+	}
+	if userIDString == "" {
+		c.CustomAbort(http.StatusBadRequest, "User id cannot be empty")
+	}
+	// Convert the task ID and user ID strings to integers
+	userID, err := strconv.Atoi(userIDString)
+	taskID, err = strconv.Atoi(taskIDString)
+	if err != nil {
+		// If the conversion fails, return a custom error response to the client
+		c.CustomAbort(http.StatusBadRequest, "Invalid task id")
+	}
+	if err != nil {
+		// If the conversion fails, return a custom error response to the client
+		c.CustomAbort(http.StatusBadRequest, "Invalid user id")
+	}
+
+	// Get the task from the database
+	o := orm.NewOrm()
+	task := TodoTask{ID: taskID}
+	err = o.Read(&task)
+	if err == orm.ErrNoRows {
+		c.CustomAbort(http.StatusBadRequest, "Task not found")
+	} else if err != nil {
+		c.CustomAbort(http.StatusInternalServerError, "Error reading task")
+	}
+
+	// Check if the current user has the task
+	if task.UserID != userID {
+		c.CustomAbort(http.StatusForbidden, "You do not have permission to delete this task")
+	}
+
+	// Delete the task from the database
+	_, err = o.Delete(&task)
+	if err != nil {
+		c.CustomAbort(http.StatusInternalServerError, "Error deleting task")
+	}
+
+	// Return a success response to the client
+	c.Data["json"] = map[string]string{"message": "Task deleted successfully"}
+	c.ServeJSON()
+}
+
 func main() {
 	//Register the MySQL driver with ORM.
 	orm.RegisterDriver("mysql", orm.DRMySQL)
@@ -196,6 +247,7 @@ func main() {
 	beego.Router("/users/:user_id/tasks", &TasksController{}, "post:AddTask")
 	beego.Router("/users/:user_id/tasks", &TasksController{}, "get:GetTasks")
 	beego.Router("/users/:user_id/tasks/:task_id", &TasksController{}, "get:GetTaskByID")
+	beego.Router("/users/:user_id/tasks/:task_id", &TasksController{}, "delete:DeleteTask")
 
 	//Start the server
 	beego.Run()
