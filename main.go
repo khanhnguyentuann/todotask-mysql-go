@@ -294,35 +294,6 @@ func (c *TasksController) DeleteTask() {
 	c.ServeJSON()
 }
 
-// DeleteAllTasks deletes all tasks for a specific user
-func (c *TasksController) DeleteAllTasks() {
-	// Extract the user ID from the URL parameters
-	var userID int
-	// Get the user ID string from the request parameters
-	userIDString := c.Ctx.Input.Param(":user_id")
-	if userIDString == "" {
-		c.CustomAbort(http.StatusBadRequest, "User id cannot be empty")
-	}
-	// Convert the user ID string to an integer
-	userID, err := strconv.Atoi(userIDString)
-	if err != nil {
-		// If the conversion fails, return a custom error response to the client
-		c.CustomAbort(http.StatusBadRequest, "Invalid user id")
-	}
-	// Create a new ORM object
-	o := orm.NewOrm()
-
-	// Delete all tasks for the user from the database
-	_, err = o.QueryTable("todo_tasks").Filter("user_id", userID).Delete()
-	if err != nil {
-		c.CustomAbort(http.StatusInternalServerError, "Error deleting tasks")
-	}
-
-	// Return a success message in the response body
-	c.Data["json"] = map[string]string{"message": "All tasks deleted"}
-	c.ServeJSON()
-}
-
 // GetUsers retrieves a list of all users
 func (c *UsersController) GetUsers() {
 	// Create a new ORM object
@@ -370,6 +341,99 @@ func (c *UsersController) AddUser() {
 	c.ServeJSON()
 }
 
+// UpdateUser updates an existing user
+func (c *UsersController) UpdateUser() {
+	// Extract the user ID from the URL parameters
+	var userID int
+	// Get the user ID string from the request parameters
+	userIDString := c.Ctx.Input.Param(":user_id")
+	if userIDString == "" {
+		c.CustomAbort(http.StatusBadRequest, "User id cannot be empty")
+	}
+	// Convert the user ID string to an integer
+	userID, err := strconv.Atoi(userIDString)
+	if err != nil {
+		// If the conversion fails, return a custom error response to the client
+		c.CustomAbort(http.StatusBadRequest, "Invalid user id")
+	}
+	// Get the updated user name and maximum tasks per day from the request body
+	name := c.GetString("name")
+	if name == "" {
+		c.CustomAbort(http.StatusBadRequest, "Name cannot be empty")
+	}
+
+	maxTasksPerDayString := c.GetString("maxtasks")
+	if maxTasksPerDayString == "" {
+		c.CustomAbort(http.StatusBadRequest, "Max tasks per day cannot be empty")
+	}
+	maxTasksPerDay, err := strconv.Atoi(maxTasksPerDayString)
+	if err != nil {
+		c.CustomAbort(http.StatusBadRequest, "Invalid max tasks per day")
+	}
+
+	// Create a new ORM object
+	o := orm.NewOrm()
+
+	// Get the user from the database
+	user := User{ID: userID}
+	err = o.Read(&user)
+	if err == orm.ErrNoRows {
+		c.CustomAbort(http.StatusBadRequest, "User not found")
+	} else if err != nil {
+		c.CustomAbort(http.StatusInternalServerError, "Error reading user")
+	}
+
+	// Update the user in the database
+	user.Name = name
+	user.MaxTasksPerDay = maxTasksPerDay
+	_, err = o.Update(&user)
+	if err != nil {
+		c.CustomAbort(http.StatusInternalServerError, "Error updating user")
+	}
+
+	// Return the updated user in the response body
+	c.Data["json"] = map[string]string{"message": "User updated successfully"}
+	c.ServeJSON()
+}
+
+// DeleteUser deletes an existing user
+func (c *UsersController) DeleteUser() {
+	// Extract the user ID from the URL parameters
+	var userID int
+	// Get the user ID string from the request parameters
+	userIDString := c.Ctx.Input.Param(":user_id")
+	if userIDString == "" {
+		c.CustomAbort(http.StatusBadRequest, "User id cannot be empty")
+	}
+	// Convert the user ID string to an integer
+	userID, err := strconv.Atoi(userIDString)
+	if err != nil {
+		// If the conversion fails, return a custom error response to the client
+		c.CustomAbort(http.StatusBadRequest, "Invalid user id")
+	}
+	// Create a new ORM object
+	o := orm.NewOrm()
+
+	// Get the user from the database
+	user := User{ID: userID}
+	err = o.Read(&user)
+	if err == orm.ErrNoRows {
+		c.CustomAbort(http.StatusBadRequest, "User not found")
+	} else if err != nil {
+		c.CustomAbort(http.StatusInternalServerError, "Error reading user")
+	}
+
+	// Delete the user from the database
+	_, err = o.Delete(&user)
+	if err != nil {
+		c.CustomAbort(http.StatusInternalServerError, "Error deleting user")
+	}
+
+	// Return a success message in the response body
+	c.Data["json"] = "User deleted successfully"
+	c.ServeJSON()
+}
+
 func main() {
 	//Register the MySQL driver with ORM.
 	orm.RegisterDriver("mysql", orm.DRMySQL)
@@ -390,11 +454,12 @@ func main() {
 	beego.Router("/:user_id", &TasksController{}, "post:AddTask")
 	beego.Router("/:user_id/:task_id", &TasksController{}, "put:UpdateTask")
 	beego.Router("/:user_id/:task_id", &TasksController{}, "delete:DeleteTask")
-	beego.Router("/:user_id", &TasksController{}, "delete:DeleteAllTasks")
 
 	//Set up the router for user
 	beego.Router("/", &UsersController{}, "get:GetUsers")
 	beego.Router("/", &UsersController{}, "post:AddUser")
+	beego.Router("/:user_id", &UsersController{}, "put:UpdateUser")
+	beego.Router("/:user_id", &UsersController{}, "delete:DeleteUser")
 
 	//Start the server
 	beego.Run()
